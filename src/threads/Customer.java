@@ -10,8 +10,7 @@ public class Customer extends AbstractTicketHandler implements Runnable {
     private final int maxTicketsPerCustomer;
     private final String customerId;
     private int ticketsBought = 0;
-    private static int totalTicketsBought = 0;  // Static counter for all tickets
-    private final int totalTickets;  // Add total tickets field
+    private final int totalTickets;
 
     public Customer(TicketPool ticketPool, int retrievalRate,
                     int maxTicketsPerCustomer, String customerId, int totalTickets) {
@@ -24,28 +23,48 @@ public class Customer extends AbstractTicketHandler implements Runnable {
 
     @Override
     public void run() {
-        while (running && ticketsBought < maxTicketsPerCustomer && totalTicketsBought < totalTickets) {
-            String ticket = ticketPool.removeTicket();
-            if (ticket != null) {
-                synchronized(Customer.class) {  // Synchronize ticket count
-                    if (totalTicketsBought < totalTickets) {
+        while (running && ticketsBought < maxTicketsPerCustomer) {
+            // First check if all tickets are sold
+            if (TicketPool.areAllTicketsSold(totalTickets)) {
+                Logger.log("All tickets have been sold. Simulation complete.");
+                running = false;
+                break;
+            }
+
+            synchronized (ticketPool) {
+                if (ticketsBought <= totalTickets) {
+                    String ticket = ticketPool.removeTicket();
+                    if (ticket != null) {
                         ticketsBought++;
-                        totalTicketsBought++;
                         Logger.log(customerId + " purchased ticket: " + ticket);
 
+
+
                         if (ticketsBought >= maxTicketsPerCustomer) {
-                            Logger.log(customerId + " reached maximum ticket limit (" +
-                                    maxTicketsPerCustomer + ")");
+                            Logger.log(customerId + " reached maximum ticket limit");
+                            running = false;
                             break;
                         }
-                        if (totalTicketsBought >= totalTickets) {
-                            Logger.log("All tickets have been purchased");
+                    }else {
+                        // Only log waiting message if tickets are still available
+                        if (!TicketPool.areAllTicketsSold(totalTickets)) {
+                            Logger.log(customerId + " waiting for vendor to release tickets...");
+                            try {
+                                ticketPool.wait(retrievalRate);
+                            } catch (InterruptedException e) {
+                                Thread.currentThread().interrupt();
+                                break;
+                            }
+                        } else {
                             break;
                         }
                     }
+                }else{Logger.log("All tickets have been sold. Simulation complete.");
+                    ticketPool.notifyAll();
+                    running = false;
+                    break;
+
                 }
-            } else {
-                Logger.log(customerId + " waiting for tickets...");
             }
 
             try {
@@ -56,11 +75,10 @@ public class Customer extends AbstractTicketHandler implements Runnable {
         }
         running = false;
     }
-
-
     public void stop() {
         running = false;
     }
+
     @Override
     public void handleTickets() {
         run();

@@ -1,4 +1,5 @@
 package threads;
+
 import core.AbstractTicketHandler;
 import core.TicketPool;
 import logging.Logger;
@@ -8,9 +9,10 @@ public class Vendor extends AbstractTicketHandler implements Runnable {
     private final int totalTickets;
     private final String vendorId;
     private volatile boolean running = true;
-    private static int totalTicketsReleased = 0;  // Static counter for all tickets
+    private static int currentTicketNumber = 0;
 
-    public Vendor(TicketPool ticketPool, int ticketReleaseRate, int totalTickets, String vendorId) {
+    public Vendor(TicketPool ticketPool, int ticketReleaseRate,
+                  int totalTickets, String vendorId) {
         super(ticketPool);
         this.ticketReleaseRate = ticketReleaseRate;
         this.totalTickets = totalTickets;
@@ -19,13 +21,13 @@ public class Vendor extends AbstractTicketHandler implements Runnable {
 
     @Override
     public void run() {
-        while (running && totalTicketsReleased < totalTickets) {
-            synchronized(Vendor.class) {  // Synchronize ticket count
-                if (totalTicketsReleased < totalTickets) {
-                    String ticket = "TKT-" + (totalTicketsReleased + 1);
+        while (running && !TicketPool.areAllTicketsSold(totalTickets)) {
+            synchronized(Vendor.class) {
+                if (currentTicketNumber < totalTickets) {
+                    currentTicketNumber++;
+                    String ticket = "TKT-" + currentTicketNumber;
                     ticketPool.addTickets(ticket);
                     Logger.log(vendorId + " released ticket: " + ticket);
-                    totalTicketsReleased++;
                 } else {
                     break;
                 }
@@ -40,12 +42,18 @@ public class Vendor extends AbstractTicketHandler implements Runnable {
         running = false;
     }
 
-
     public void stop() {
         running = false;
     }
+
+    public static void resetCounters() {
+        currentTicketNumber = 0;
+    }
+
     @Override
     public void handleTickets() {
         run();
     }
 }
+
+

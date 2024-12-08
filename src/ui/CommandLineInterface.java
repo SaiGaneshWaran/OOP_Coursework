@@ -20,8 +20,10 @@ public class CommandLineInterface {
     private static List<Customer> customers;
     private static boolean isRunning = true;
 
+
     public static void start() {
         Scanner scanner = new Scanner(System.in);
+
         while (isRunning) {
             displayMenu();
             try {
@@ -54,7 +56,6 @@ public class CommandLineInterface {
             default -> System.out.println("Invalid choice! Please enter 1-5");
         }
     }
-
     private static void configureSystem() {
         Scanner scanner = new Scanner(System.in);
         try {
@@ -121,7 +122,7 @@ public class CommandLineInterface {
         }
 
         try {
-            ticketPool = new TicketPool(config.getMaxTicketCapacity());
+            ticketPool = new TicketPool(config.getMaxTicketCapacity(), config.getTotalTickets());
             vendorThreads = new ArrayList<>();
             customerThreads = new ArrayList<>();
             vendors = new ArrayList<>();
@@ -158,6 +159,7 @@ public class CommandLineInterface {
             for (Thread t : customerThreads) t.join();
 
             Logger.log("Simulation completed");
+
 
         } catch (Exception e) {
             Logger.log("Error in simulation: " + e.getMessage());
